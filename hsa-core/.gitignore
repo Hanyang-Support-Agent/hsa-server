@@ -1,37 +1,32 @@
-HELP.md
+# --- Build & Dependency ---
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
+# --- Application Secrets (MUST) ---
+application.yml
+application-*.yml
+.env
 
-### IntelliJ IDEA ###
-.idea
+# --- Docker Data (MUST) ---
+postgres_data/
+
+# --- IDEs ---
+.idea/
 *.iws
 *.iml
 *.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-### VS Code ###
 .vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
