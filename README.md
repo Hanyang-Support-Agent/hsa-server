@@ -1,4 +1,4 @@
-# 🗣️ 한양대학교 ERICA 클라우드캡스톤디자인 프로젝트 HAA
+# 🗣️ 한양대학교 ERICA 클라우드캡스톤디자인 프로젝트 HSA
 ## 🚀 Git Flow
 - `main`
   - 프로젝트 최종 merge
