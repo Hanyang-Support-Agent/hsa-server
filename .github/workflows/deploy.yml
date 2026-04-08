@@ -28,6 +28,7 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew clean build -x test
+        working-directory: ./hsa-core
 
   # CD: 서버 배포 (main 머지 시에만 작동)
   # deploy:
