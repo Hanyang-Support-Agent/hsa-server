@@ -1,4 +1,4 @@
-name: HSA CI/CD Pipeline
+name: HSA Server CI/CD Pipeline
 
 on:
   pull_request:
@@ -6,8 +6,14 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  # CI: 빌드 및 테스트 검증
+  # ---------------------------------------------------------
+  # [CI] 빌드 및 테스트 검증
+  # ---------------------------------------------------------
   build:
     runs-on: ubuntu-latest
     steps:
@@ -20,29 +26,80 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # GitHub Secrets에 저장된 yml 내용을 파일로 생성
-      - name: Inject application.yml
-        run: |
-          mkdir -p ./hsa-core/src/main/resources
-          echo "${{ secrets.APPLICATION_YML }}" > ./hsa-core/src/main/resources/application.yml
-
       - name: Build with Gradle
         run: ./gradlew clean build -x test
         working-directory: ./hsa-core
 
-  # CD: 서버 배포 (main 머지 시에만 작동)
-  # deploy:
-  #   needs: build
-  #   if: github.event_name == 'push'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: SSH Deploy
-  #       uses: appleboy/ssh-action@master
-  #       with:
-  #         host: ${{ secrets.EC2_HOST }}
-  #         username: ${{ secrets.EC2_USERNAME }}
-  #         key: ${{ secrets.EC2_SSH_KEY }}
-  #         script: |
-  #           cd ~/hsa-server
-  #           git pull origin main
-  #           docker-compose up -d --build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hsa-server-jar
+          path: ./hsa-core/build/libs/*.jar
+          retention-days: 1
+
+  # ---------------------------------------------------------
+  # [CD] Amazon ECR 푸시 및 ECS 서비스 배포
+  # ---------------------------------------------------------
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hsa-server-jar
+          path: ./hsa-core/build/libs/
+
+      # 1. AWS 인증
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-2
+
+      # 2. Amazon ECR 로그인
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 3. Docker 이미지 빌드 및 ECR 푸시 (Dockerfile 경로 수정 반영)
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_SERVER_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+        
+          docker build -f ./hsa-core/src/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # 4. AWS에서 최신 태스크 정의 다운로드
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+          --task-definition ${{ secrets.AWS_SERVER_ECS_SERVICE }} \
+          --query taskDefinition > task-definition.json
+
+      # 5. 태스크 정의에 새로운 이미지 URI 업데이트
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ secrets.AWS_SERVER_CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      # 6. 백엔드 ECS 서비스에 배포
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ secrets.AWS_SERVER_ECS_SERVICE }}
+          cluster: ${{ secrets.AWS_ECS_CLUSTER }}
+          wait-for-service-stability: true
