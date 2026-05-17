@@ -15,7 +15,7 @@ public class InfraTestController {
     @GetMapping("/api/test/proxy-ping")
     public ResponseEntity<String> proxyPing() {
         try {
-            String aiResponse = restTemplate.getForObject("http://hsa-ai:8000/api/test/ping", String.class);
+            String aiResponse = restTemplate.getForObject("http://hsa-ai.hsa.local:8000/api/test/ping", String.class);
             return ResponseEntity.ok("AI 서버 연결 성공! 응답: " + aiResponse);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("AI 서버 연결 실패: " + e.getMessage());

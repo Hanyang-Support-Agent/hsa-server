@@ -19,7 +19,7 @@ public class SwaggerConfig {
                         .description("벡엔드 API 명세서.")
                         .version("v1.0.0"))
                 .servers(List.of(
-                        new Server().url("http://localhost:8080").description("Local Server")
+                        new Server().url("/").description("Default Server")
                 ));
     }
 }
