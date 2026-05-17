@@ -85,7 +85,7 @@ jobs:
       - name: Download task definition
         run: |
           aws ecs describe-task-definition \
-          --task-definition ${{ secrets.AWS_SERVER_ECS_SERVICE }} \
+          --task-definition ${{ secrets.AWS_SERVER_TASK_DEF_FAMILY }} \
           --query taskDefinition > task-definition.json
 
       # 5. 태스크 정의에 새로운 이미지 URI 업데이트
