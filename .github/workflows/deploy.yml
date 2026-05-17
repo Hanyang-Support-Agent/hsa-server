@@ -6,9 +6,7 @@ on:
   push:
     branches: [ "main" ]
 
-permissions:
-  id-token: write
-  contents: read
+
 
 jobs:
   # ---------------------------------------------------------
@@ -16,6 +14,11 @@ jobs:
   # ---------------------------------------------------------
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +62,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ap-northeast-2
+          aws-region: us-east-1
 
       # 2. Amazon ECR 로그인
       - name: Login to Amazon ECR
