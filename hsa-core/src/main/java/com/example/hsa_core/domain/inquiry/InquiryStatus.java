@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry;
 
+// 문의 접수 이후 AI 처리, 관리자 검토, 발송까지의 상태를 나타냅니다.
 public enum InquiryStatus {
     RECEIVED, //문의 접수
     FIRST_CREATED, //초안 생성
