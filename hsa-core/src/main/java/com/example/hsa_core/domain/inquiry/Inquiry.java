@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry;
 
+import com.example.hsa_core.domain.channel.ChannelType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -23,6 +24,10 @@ public class Inquiry {
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel_type", nullable = false, length = 30)
+    private ChannelType channelType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)

@@ -6,6 +6,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class WebhookRequestDTO {
-    private Long customerId;
+    private String identifier;
     private String content;
 }
