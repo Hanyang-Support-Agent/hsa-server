@@ -35,7 +35,7 @@ public class WebhookController {
                 channelType
         );
 
-        InquiryCreateResponse response = inquiryService.createInquiry(inquiryRequest, channelType);
+        InquiryCreateResponse response = inquiryService.createInquiry(inquiryRequest);
 
         return ResponseEntity.ok(Map.of(
                 "success", true,

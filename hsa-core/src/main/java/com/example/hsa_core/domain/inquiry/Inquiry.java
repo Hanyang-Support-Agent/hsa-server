@@ -39,9 +39,10 @@ public class Inquiry {
     @Column(name = "updated_time")
     private OffsetDateTime updatedTime;
 
-    public Inquiry(Long customerId, String content) {
+    public Inquiry(Long customerId, String content, ChannelType channelType) {
         this.customerId = customerId;
         this.content = content;
+        this.channelType = channelType;
         this.status = InquiryStatus.RECEIVED;
     }
 
