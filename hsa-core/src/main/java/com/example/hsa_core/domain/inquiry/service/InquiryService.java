@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry.service;
 
+import com.example.hsa_core.domain.channel.ChannelType;
 import com.example.hsa_core.domain.inquiry.Inquiry;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateRequest;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateResponse;
@@ -18,7 +19,7 @@ public class InquiryService {
     @Transactional
     // 문의를 RECEIVED 상태로 생성하고 저장 결과를 반환합니다.
     public InquiryCreateResponse createInquiry(InquiryCreateRequest request) {
-        Inquiry inquiry = new Inquiry(request.customerId(), request.content());
+        Inquiry inquiry = new Inquiry(request.customerId(), request.content(), request.channelType());
         Inquiry savedInquiry = inquiryRepository.save(inquiry);
 
         return InquiryCreateResponse.from(savedInquiry);

@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry;
 
+import com.example.hsa_core.domain.channel.ChannelType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -28,6 +29,10 @@ public class Inquiry {
     private String content;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "channel_type", nullable = false, length = 30)
+    private ChannelType channelType;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     // 문의 접수부터 발송 완료까지의 처리 상태입니다.
     private InquiryStatus status = InquiryStatus.RECEIVED;
@@ -40,9 +45,10 @@ public class Inquiry {
     // 문의 상태가 마지막으로 변경된 시각입니다.
     private OffsetDateTime updatedTime;
 
-    public Inquiry(Long customerId, String content) {
+    public Inquiry(Long customerId, String content, ChannelType channelType) {
         this.customerId = customerId;
         this.content = content;
+        this.channelType = channelType;
         this.status = InquiryStatus.RECEIVED;
     }
 
