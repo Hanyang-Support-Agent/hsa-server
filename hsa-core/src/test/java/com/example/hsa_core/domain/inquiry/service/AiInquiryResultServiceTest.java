@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry.service;
 
+import com.example.hsa_core.domain.channel.ChannelType;
 import com.example.hsa_core.domain.inquiry.InquiryResult;
 import com.example.hsa_core.domain.inquiry.InquiryStatus;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateRequest;
@@ -173,6 +174,6 @@ class AiInquiryResultServiceTest {
     }
 
     private InquiryCreateResponse createInquiry() {
-        return inquiryService.createInquiry(new InquiryCreateRequest(1L, "배송이 언제 도착하나요?"));
+        return inquiryService.createInquiry(new InquiryCreateRequest(1L, "배송이 언제 도착하나요?", ChannelType.KAKAO));
     }
 }
