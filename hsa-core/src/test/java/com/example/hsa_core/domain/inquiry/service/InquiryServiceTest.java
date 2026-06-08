@@ -1,5 +1,6 @@
 package com.example.hsa_core.domain.inquiry.service;
 
+import com.example.hsa_core.domain.channel.ChannelType;
 import com.example.hsa_core.domain.inquiry.InquiryStatus;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateRequest;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateResponse;
@@ -27,7 +28,7 @@ class InquiryServiceTest {
 
     @Test
     void createInquirySavesInquiryWithReceivedStatus() {
-        InquiryCreateRequest request = new InquiryCreateRequest(1L, "배송이 언제 도착하나요?");
+        InquiryCreateRequest request = new InquiryCreateRequest(1L, "배송이 언제 도착하나요?", ChannelType.KAKAO);
 
         InquiryCreateResponse response = inquiryService.createInquiry(request);
 
@@ -41,5 +42,10 @@ class InquiryServiceTest {
                 .get()
                 .extracting("status")
                 .isEqualTo(InquiryStatus.RECEIVED);
+        assertThat(inquiryRepository.findById(response.inquiryId()))
+                .isPresent()
+                .get()
+                .extracting("channelType")
+                .isEqualTo(ChannelType.KAKAO);
     }
 }

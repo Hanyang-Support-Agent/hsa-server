@@ -8,6 +8,6 @@ import jakarta.validation.constraints.NotNull;
 public record InquiryCreateRequest(
         @NotNull Long customerId,
         @NotBlank String content,
-        ChannelType channelType
+        @NotNull ChannelType channelType
 ) {
 }
