@@ -77,6 +77,12 @@ public class Response {
         this.finalContent = finalContent;
     }
 
+    public void modifyFinalContent(String finalContent, Long adminId) {
+        this.finalContent = finalContent;
+        this.adminId = adminId;
+        this.status = ResponseStatus.MODIFIED;
+    }
+
     // 답변 작성, 발송 준비, 발송 완료 등 처리 상태를 변경합니다.
     public void changeStatus(ResponseStatus status) {
         this.status = status;

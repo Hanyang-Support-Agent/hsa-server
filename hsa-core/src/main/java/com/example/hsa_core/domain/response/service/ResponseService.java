@@ -38,6 +38,8 @@ public class ResponseService {
                 inquiryId,
                 inquiryResultId,
                 savedResponse.getId(),
+                null,
+                ActorType.SYSTEM,
                 ProcessingEventType.DRAFT_CREATED,
                 null,
                 draftContent
@@ -65,6 +67,8 @@ public class ResponseService {
                 inquiryId,
                 inquiryResultId,
                 savedResponse.getId(),
+                null,
+                ActorType.SYSTEM,
                 ProcessingEventType.CONFIRMED,
                 null,
                 answerContent
@@ -73,9 +77,40 @@ public class ResponseService {
         return savedResponse;
     }
 
+    @Transactional
+    public Response modifyResponse(Long responseId, Long adminId, String finalContent) {
+        Response response = responseRepository.findById(responseId)
+                .orElseThrow(() -> new IllegalArgumentException("response not found"));
+
+        validateContent(finalContent, "finalContent");
+        validateAdminId(adminId);
+
+        String previousState = response.getFinalContent();
+        response.modifyFinalContent(finalContent, adminId);
+
+        saveProcessingLog(
+                response.getInquiryId(),
+                response.getInquiryResultId(),
+                response.getId(),
+                adminId,
+                ActorType.ADMIN,
+                ProcessingEventType.ADMIN_MODIFIED,
+                previousState,
+                finalContent
+        );
+
+        return response;
+    }
+
     private void validateContent(String content, String fieldName) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+    }
+
+    private void validateAdminId(Long adminId) {
+        if (adminId == null) {
+            throw new IllegalArgumentException("adminId must not be null");
         }
     }
 
@@ -83,6 +118,8 @@ public class ResponseService {
             Long inquiryId,
             Long inquiryResultId,
             Long responseId,
+            Long adminId,
+            ActorType actorType,
             ProcessingEventType eventType,
             String previousState,
             String currentState
@@ -91,8 +128,8 @@ public class ResponseService {
                 .inquiryId(inquiryId)
                 .inquiryResultId(inquiryResultId)
                 .responseId(responseId)
-                .adminId(null)
-                .actorType(ActorType.SYSTEM)
+                .adminId(adminId)
+                .actorType(actorType)
                 .eventType(eventType)
                 .previousState(previousState)
                 .currentState(currentState)

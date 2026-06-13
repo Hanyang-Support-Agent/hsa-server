@@ -88,4 +88,45 @@ class ResponseServiceTest {
         assertThat(responseRepository.count()).isZero();
         assertThat(processingLogRepository.count()).isZero();
     }
+
+    @Test
+    void modifyResponseUpdatesFinalContentAndSavesProcessingLog() {
+        Response response = responseService.createAutoResponse(1L, 10L, "before answer");
+
+        Response modifiedResponse = responseService.modifyResponse(response.getId(), 100L, "after answer");
+
+        assertThat(modifiedResponse.getFinalContent()).isEqualTo("after answer");
+        assertThat(modifiedResponse.getAdminId()).isEqualTo(100L);
+        assertThat(modifiedResponse.getStatus()).isEqualTo(ResponseStatus.MODIFIED);
+
+        List<ProcessingLog> logs = processingLogRepository.findByResponseIdOrderByCreatedTimeAsc(response.getId());
+
+        assertThat(logs).hasSize(2);
+        assertThat(logs.get(1).getInquiryId()).isEqualTo(1L);
+        assertThat(logs.get(1).getInquiryResultId()).isEqualTo(10L);
+        assertThat(logs.get(1).getResponseId()).isEqualTo(response.getId());
+        assertThat(logs.get(1).getAdminId()).isEqualTo(100L);
+        assertThat(logs.get(1).getActorType()).isEqualTo(ActorType.ADMIN);
+        assertThat(logs.get(1).getEventType()).isEqualTo(ProcessingEventType.ADMIN_MODIFIED);
+        assertThat(logs.get(1).getPreviousState()).isEqualTo("before answer");
+        assertThat(logs.get(1).getCurrentState()).isEqualTo("after answer");
+    }
+
+    @Test
+    void modifyResponseThrowsExceptionWhenAdminIdIsNull() {
+        Response response = responseService.createAutoResponse(1L, 10L, "before answer");
+
+        assertThatThrownBy(() -> responseService.modifyResponse(response.getId(), null, "after answer"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("adminId must not be null");
+    }
+
+    @Test
+    void modifyResponseThrowsExceptionWhenFinalContentIsBlank() {
+        Response response = responseService.createAutoResponse(1L, 10L, "before answer");
+
+        assertThatThrownBy(() -> responseService.modifyResponse(response.getId(), 100L, " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("finalContent must not be blank");
+    }
 }
