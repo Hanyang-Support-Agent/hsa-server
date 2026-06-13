@@ -102,6 +102,41 @@ public class ResponseService {
         return response;
     }
 
+    @Transactional
+    // 최종 답변을 발송 가능한 상태로 확정하고 처리 로그를 남깁니다.
+    public Response confirmResponse(Long responseId, Long adminId) {
+        // 확정할 답변을 조회하고, 존재하지 않으면 예외를 발생시킵니다.
+        Response response = responseRepository.findById(responseId)
+                .orElseThrow(() -> new IllegalArgumentException("response not found"));
+
+        // 확정 작업을 수행한 관리자 식별자가 전달되었는지 확인합니다.
+        validateAdminId(adminId);
+
+        // 최종 답변 내용이 비어 있으면 확정할 수 없도록 검증합니다.
+        validateContent(response.getFinalContent(), "finalContent");
+
+        // 처리 로그에 남기기 위해 확정 전 상태를 문자열로 저장합니다.
+        String previousState = response.getStatus().name();
+
+        // 답변 상태를 발송 대기 상태로 변경합니다.
+        response.changeStatus(ResponseStatus.READY_TO_SEND);
+
+        // 관리자에 의해 최종 확정되었음을 처리 로그로 기록합니다.
+        saveProcessingLog(
+                response.getInquiryId(),
+                response.getInquiryResultId(),
+                response.getId(),
+                adminId,
+                ActorType.ADMIN,
+                ProcessingEventType.CONFIRMED,
+                previousState,
+                ResponseStatus.READY_TO_SEND.name()
+        );
+
+        // 변경된 답변 엔티티를 반환합니다.
+        return response;
+    }
+
     private void validateContent(String content, String fieldName) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException(fieldName + " must not be blank");
