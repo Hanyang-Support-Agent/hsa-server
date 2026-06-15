@@ -1,11 +1,14 @@
 package com.example.hsa_core.domain.inquiry.service;
 
+import com.example.hsa_core.domain.channel.ChannelType;
+import com.example.hsa_core.domain.inquiry.Inquiry;
 import com.example.hsa_core.domain.inquiry.InquiryResult;
 import com.example.hsa_core.domain.inquiry.client.AiInquiryClient;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryData;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryError;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryRequest;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryResponse;
+import com.example.hsa_core.domain.inquiry.repository.InquiryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -15,6 +18,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,12 +29,39 @@ import static org.mockito.Mockito.when;
 class AiInquiryProcessingServiceTest {
 
     @Mock
+    private InquiryRepository inquiryRepository;
+
+    @Mock
+    private AiInquiryRequestFactory aiInquiryRequestFactory;
+
+    @Mock
     private AiInquiryClient aiInquiryClient;
 
     @Mock
     private AiInquiryResultService aiInquiryResultService;
 
     private final AiInquiryRetryPolicy retryPolicy = new AiInquiryRetryPolicy();
+
+    @Test
+    // 문의 조회와 context 기반 요청 조립 후 AI 서버 호출까지 이어지는지 확인합니다.
+    void requestProcessingCreatesRequestFromInquiryAndContext() {
+        AiInquiryProcessingService service = createService();
+        Inquiry inquiry = new Inquiry(1L, "배송이 언제 도착하나요?", ChannelType.KAKAO);
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = successResponse();
+        InquiryResult savedResult = InquiryResult.fromAiResponse(10L, aiResponse);
+
+        when(inquiryRepository.findById(10L)).thenReturn(Optional.of(inquiry));
+        when(aiInquiryRequestFactory.from(10L, inquiry)).thenReturn(request);
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        InquiryResult result = service.requestProcessing(10L);
+
+        assertThat(result).isSameAs(savedResult);
+        verify(aiInquiryRequestFactory).from(10L, inquiry);
+        verify(aiInquiryClient).requestInquiryProcessing(request);
+    }
 
     @Test
     // AI 서버 호출과 결과 저장 서비스 연결이 수행되는지 확인합니다.
@@ -108,6 +139,8 @@ class AiInquiryProcessingServiceTest {
 
     private AiInquiryProcessingService createService() {
         return new AiInquiryProcessingService(
+                inquiryRepository,
+                aiInquiryRequestFactory,
                 aiInquiryClient,
                 aiInquiryResultService,
                 retryPolicy
