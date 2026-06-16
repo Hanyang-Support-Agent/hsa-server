@@ -129,4 +129,44 @@ class ResponseServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("finalContent must not be blank");
     }
+
+    @Test
+    void confirmResponseChangesStatusToReadyToSendAndSavesProcessingLog() {
+        Response response = responseService.createDraftResponse(1L, 10L, "draft answer");
+        responseService.modifyResponse(response.getId(), 100L, "final answer");
+
+        Response confirmedResponse = responseService.confirmResponse(response.getId(), 100L);
+
+        assertThat(confirmedResponse.getStatus()).isEqualTo(ResponseStatus.READY_TO_SEND);
+
+        List<ProcessingLog> logs = processingLogRepository.findByResponseIdOrderByCreatedTimeAsc(response.getId());
+
+        assertThat(logs).hasSize(3);
+        assertThat(logs.get(2).getInquiryId()).isEqualTo(1L);
+        assertThat(logs.get(2).getInquiryResultId()).isEqualTo(10L);
+        assertThat(logs.get(2).getResponseId()).isEqualTo(response.getId());
+        assertThat(logs.get(2).getAdminId()).isEqualTo(100L);
+        assertThat(logs.get(2).getActorType()).isEqualTo(ActorType.ADMIN);
+        assertThat(logs.get(2).getEventType()).isEqualTo(ProcessingEventType.CONFIRMED);
+        assertThat(logs.get(2).getPreviousState()).isEqualTo(ResponseStatus.MODIFIED.name());
+        assertThat(logs.get(2).getCurrentState()).isEqualTo(ResponseStatus.READY_TO_SEND.name());
+    }
+
+    @Test
+    void confirmResponseThrowsExceptionWhenAdminIdIsNull() {
+        Response response = responseService.createAutoResponse(1L, 10L, "final answer");
+
+        assertThatThrownBy(() -> responseService.confirmResponse(response.getId(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("adminId must not be null");
+    }
+
+    @Test
+    void confirmResponseThrowsExceptionWhenFinalContentIsBlank() {
+        Response response = responseService.createDraftResponse(1L, 10L, "draft answer");
+
+        assertThatThrownBy(() -> responseService.confirmResponse(response.getId(), 100L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("finalContent must not be blank");
+    }
 }
