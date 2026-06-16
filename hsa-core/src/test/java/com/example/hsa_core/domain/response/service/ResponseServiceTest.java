@@ -6,8 +6,11 @@ import com.example.hsa_core.domain.response.ProcessingLog;
 import com.example.hsa_core.domain.response.Response;
 import com.example.hsa_core.domain.response.ResponseStatus;
 import com.example.hsa_core.domain.response.ResponseType;
+import com.example.hsa_core.domain.response.SendStatus;
+import com.example.hsa_core.domain.response.Transmission;
 import com.example.hsa_core.domain.response.repository.ProcessingLogRepository;
 import com.example.hsa_core.domain.response.repository.ResponseRepository;
+import com.example.hsa_core.domain.response.repository.TransmissionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +33,12 @@ class ResponseServiceTest {
     @Autowired
     private ProcessingLogRepository processingLogRepository;
 
+    @Autowired
+    private TransmissionRepository transmissionRepository;
+
     @AfterEach
     void tearDown() {
+        transmissionRepository.deleteAll();
         processingLogRepository.deleteAll();
         responseRepository.deleteAll();
     }
@@ -168,5 +175,60 @@ class ResponseServiceTest {
         assertThatThrownBy(() -> responseService.confirmResponse(response.getId(), 100L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("finalContent must not be blank");
+    }
+
+    @Test
+    void sendResponseMockSavesTransmissionAndChangesStatusToSent() {
+        Response response = responseService.createAutoResponse(1L, 10L, "final answer");
+
+        Transmission transmission = responseService.sendResponseMock(response.getId(), 20L, "customer-1");
+
+        assertThat(transmission.getId()).isNotNull();
+        assertThat(transmission.getResponseId()).isEqualTo(response.getId());
+        assertThat(transmission.getChannelId()).isEqualTo(20L);
+        assertThat(transmission.getRecipientIdentifier()).isEqualTo("customer-1");
+        assertThat(transmission.getAttemptNo()).isEqualTo(1);
+        assertThat(transmission.getSendStatus()).isEqualTo(SendStatus.SUCCESS);
+        assertThat(transmission.getExternalMessageId()).isEqualTo("mock-" + response.getId() + "-" + transmission.getId());
+        assertThat(transmission.getSentTime()).isNotNull();
+
+        Response sentResponse = responseRepository.findById(response.getId()).orElseThrow();
+        assertThat(sentResponse.getStatus()).isEqualTo(ResponseStatus.SENT);
+
+        List<ProcessingLog> logs = processingLogRepository.findByResponseIdOrderByCreatedTimeAsc(response.getId());
+
+        assertThat(logs).hasSize(2);
+        assertThat(logs.get(1).getActorType()).isEqualTo(ActorType.SYSTEM);
+        assertThat(logs.get(1).getEventType()).isEqualTo(ProcessingEventType.SENT);
+        assertThat(logs.get(1).getPreviousState()).isEqualTo(ResponseStatus.READY_TO_SEND.name());
+        assertThat(logs.get(1).getCurrentState()).isEqualTo(ResponseStatus.SENT.name());
+    }
+
+    @Test
+    void sendResponseMockThrowsExceptionWhenChannelIdIsNull() {
+        Response response = responseService.createAutoResponse(1L, 10L, "final answer");
+
+        assertThatThrownBy(() -> responseService.sendResponseMock(response.getId(), null, "customer-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("channelId must not be null");
+    }
+
+    @Test
+    void sendResponseMockThrowsExceptionWhenRecipientIdentifierIsBlank() {
+        Response response = responseService.createAutoResponse(1L, 10L, "final answer");
+
+        assertThatThrownBy(() -> responseService.sendResponseMock(response.getId(), 20L, " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("recipientIdentifier must not be blank");
+    }
+
+    @Test
+    void sendResponseMockThrowsExceptionWhenStatusIsNotReadyToSend() {
+        Response response = responseService.createDraftResponse(1L, 10L, "draft answer");
+        responseService.modifyResponse(response.getId(), 100L, "final answer");
+
+        assertThatThrownBy(() -> responseService.sendResponseMock(response.getId(), 20L, "customer-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("response status must be READY_TO_SEND");
     }
 }
