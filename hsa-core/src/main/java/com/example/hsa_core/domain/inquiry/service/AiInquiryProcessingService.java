@@ -7,6 +7,7 @@ import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryError;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryErrorCode;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryRequest;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryResponse;
+import com.example.hsa_core.domain.inquiry.repository.InquiryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +18,22 @@ import org.springframework.web.client.RestClientException;
 // 저장된 문의를 AI 서버에 전달하고 처리 결과를 기존 결과 저장 흐름에 연결합니다.
 public class AiInquiryProcessingService {
 
+    private final InquiryRepository inquiryRepository;
+    private final AiInquiryRequestFactory aiInquiryRequestFactory;
     private final AiInquiryClient aiInquiryClient;
     private final AiInquiryResultService aiInquiryResultService;
     private final AiInquiryRetryPolicy aiInquiryRetryPolicy;
+
+    @Transactional
+    // 문의와 주문/배송 context를 조회해 AI 처리 요청을 생성한 뒤 결과를 반영합니다.
+    public InquiryResult requestProcessing(Long inquiryId) {
+        Inquiry inquiry = inquiryRepository.findById(inquiryId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
+
+        AiInquiryRequest request = aiInquiryRequestFactory.from(inquiryId, inquiry);
+
+        return requestProcessing(inquiryId, request);
+    }
 
     @Transactional
     // 이미 조립된 AI 처리 요청을 보내고, 최종 응답을 InquiryResult에 반영합니다.
