@@ -1,7 +1,10 @@
 package com.example.hsa_core.domain.inquiry.controller;
 
+import com.example.hsa_core.domain.inquiry.InquiryResult;
+import com.example.hsa_core.domain.inquiry.dto.InquiryAiProcessingResponse;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateRequest;
 import com.example.hsa_core.domain.inquiry.dto.InquiryCreateResponse;
+import com.example.hsa_core.domain.inquiry.service.AiInquiryProcessingService;
 import com.example.hsa_core.domain.inquiry.service.InquiryService;
 import com.example.hsa_core.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class InquiryController {
 
     private final InquiryService inquiryService;
+    private final AiInquiryProcessingService aiInquiryProcessingService;
 
     @Operation(summary = "문의 저장", description = "고객 문의 내용을 저장합니다.")
     @PostMapping
@@ -35,5 +40,17 @@ public class InquiryController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.onSuccess(response));
+    }
+
+    @Operation(summary = "AI 문의 처리 요청", description = "저장된 문의에 대해 AI 서버 처리를 요청합니다.")
+    @PostMapping("/{inquiryId}/ai-processing")
+    // 저장된 문의를 AI 서버에 전달하고 저장된 분석 결과 식별자를 반환합니다.
+    public ResponseEntity<ApiResponse<InquiryAiProcessingResponse>> requestAiProcessing(
+            @PathVariable Long inquiryId
+    ) {
+        InquiryResult inquiryResult = aiInquiryProcessingService.requestProcessing(inquiryId);
+        InquiryAiProcessingResponse response = InquiryAiProcessingResponse.from(inquiryResult);
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 }
