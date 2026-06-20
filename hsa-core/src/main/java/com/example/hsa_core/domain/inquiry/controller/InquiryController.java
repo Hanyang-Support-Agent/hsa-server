@@ -28,6 +28,7 @@ public class InquiryController {
 
     private final InquiryService inquiryService;
     private final AiInquiryProcessingService aiInquiryProcessingService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Operation(summary = "문의 저장", description = "고객 문의 내용을 저장합니다.")
     @PostMapping
@@ -52,5 +53,12 @@ public class InquiryController {
         InquiryAiProcessingResponse response = InquiryAiProcessingResponse.from(inquiryResult);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "디버그용 전체조회", description = "인프라 우회 DB 데이터 확인")
+    @org.springframework.web.bind.annotation.GetMapping("/debug/raw-data")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> getDebugInquiries() {
+        java.util.List<java.util.Map<String, Object>> list = jdbcTemplate.queryForList("SELECT * FROM inquiries");
+        return ResponseEntity.ok(list);
     }
 }
