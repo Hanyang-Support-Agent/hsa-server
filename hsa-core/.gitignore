@@ -4,7 +4,7 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # --- Application Secrets (MUST) ---
-application.yml
+#application.yml
 application-*.yml
 .env
 
