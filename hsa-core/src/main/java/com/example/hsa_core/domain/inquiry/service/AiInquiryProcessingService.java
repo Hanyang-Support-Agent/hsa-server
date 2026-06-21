@@ -8,6 +8,7 @@ import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryErrorCode;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryRequest;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryResponse;
 import com.example.hsa_core.domain.inquiry.repository.InquiryRepository;
+import com.example.hsa_core.domain.response.service.ResponseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class AiInquiryProcessingService {
     private final AiInquiryClient aiInquiryClient;
     private final AiInquiryResultService aiInquiryResultService;
     private final AiInquiryRetryPolicy aiInquiryRetryPolicy;
+    private final ResponseService responseService;
 
     @Transactional
     // 문의와 주문/배송 context를 조회해 AI 처리 요청을 생성한 뒤 결과를 반영합니다.
@@ -40,7 +42,39 @@ public class AiInquiryProcessingService {
     public InquiryResult requestProcessing(Long inquiryId, AiInquiryRequest request) {
         AiInquiryResponse response = requestWithSingleRetry(request);
 
-        return aiInquiryResultService.applyAiResult(inquiryId, response);
+        InquiryResult inquiryResult = aiInquiryResultService.applyAiResult(inquiryId, response);
+
+        // 저장된 AI 결과를 기준으로 자동응답 또는 관리자 검토용 답변을 생성합니다.
+        createResponseIfPossible(inquiryId, inquiryResult, response);
+
+        return inquiryResult;
+    }
+
+    private void createResponseIfPossible(
+            Long inquiryId,
+            InquiryResult inquiryResult,
+            AiInquiryResponse response
+    ) {
+        if (response == null
+                || "error".equalsIgnoreCase(response.status())
+                || response.data() == null
+                || inquiryResult == null
+                || inquiryResult.getId() == null) {
+            return;
+        }
+
+        String draftAnswer = response.data().draftAnswer();
+        if (draftAnswer == null || draftAnswer.isBlank()) {
+            return;
+        }
+
+        // 자동응답 가능 여부에 따라 최종 답변 또는 검토용 초안으로 저장합니다.
+        if (response.data().autoReplyAvailable()) {
+            responseService.createAutoResponse(inquiryId, inquiryResult.getId(), draftAnswer);
+            return;
+        }
+
+        responseService.createDraftResponse(inquiryId, inquiryResult.getId(), draftAnswer);
     }
 
     // AI 응답이 재시도 가능한 오류인 경우 한 번 더 호출합니다.

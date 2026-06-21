@@ -4,6 +4,7 @@ import com.example.hsa_core.domain.inquiry.InquiryResult;
 import com.example.hsa_core.domain.inquiry.service.AiInquiryProcessingService;
 import com.example.hsa_core.domain.inquiry.service.InquiryService;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -18,8 +19,9 @@ class InquiryControllerTest {
 
     private final InquiryService inquiryService = mock(InquiryService.class);
     private final AiInquiryProcessingService aiInquiryProcessingService = mock(AiInquiryProcessingService.class);
+    private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final MockMvc mockMvc = MockMvcBuilders
-            .standaloneSetup(new InquiryController(inquiryService, aiInquiryProcessingService))
+            .standaloneSetup(new InquiryController(inquiryService, aiInquiryProcessingService, jdbcTemplate))
             .build();
 
     @Test

@@ -9,6 +9,7 @@ import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryError;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryRequest;
 import com.example.hsa_core.domain.inquiry.dto.ai.AiInquiryResponse;
 import com.example.hsa_core.domain.inquiry.repository.InquiryRepository;
+import com.example.hsa_core.domain.response.service.ResponseService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -21,8 +22,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +44,9 @@ class AiInquiryProcessingServiceTest {
 
     @Mock
     private AiInquiryResultService aiInquiryResultService;
+
+    @Mock
+    private ResponseService responseService;
 
     private final AiInquiryRetryPolicy retryPolicy = new AiInquiryRetryPolicy();
 
@@ -137,13 +145,136 @@ class AiInquiryProcessingServiceTest {
         assertThat(responseCaptor.getValue().error().code()).isEqualTo("EXTERNAL_SYSTEM_ERROR");
     }
 
+    @Test
+    void requestProcessingCreatesAutoResponseWhenAutoReplyIsAvailable() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = responseWithDraft(true, "auto answer");
+        InquiryResult savedResult = savedInquiryResult(100L);
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        InquiryResult result = service.requestProcessing(10L, request);
+
+        assertThat(result).isSameAs(savedResult);
+        verify(responseService).createAutoResponse(10L, 100L, "auto answer");
+        verify(responseService, never()).createDraftResponse(any(), any(), any());
+    }
+
+    @Test
+    void requestProcessingCreatesDraftResponseWhenAdminReviewIsRequired() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = responseWithDraft(false, "draft answer");
+        InquiryResult savedResult = savedInquiryResult(100L);
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        InquiryResult result = service.requestProcessing(10L, request);
+
+        assertThat(result).isSameAs(savedResult);
+        verify(responseService).createDraftResponse(10L, 100L, "draft answer");
+        verify(responseService, never()).createAutoResponse(any(), any(), any());
+    }
+
+    @Test
+    void requestProcessingDoesNotCreateResponseWhenDraftAnswerIsNull() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = responseWithDraft(true, null);
+        InquiryResult savedResult = savedInquiryResult(100L);
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        service.requestProcessing(10L, request);
+
+        verifyNoInteractions(responseService);
+    }
+
+    @Test
+    void requestProcessingDoesNotCreateResponseWhenDraftAnswerIsBlank() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = responseWithDraft(false, " ");
+        InquiryResult savedResult = savedInquiryResult(100L);
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        service.requestProcessing(10L, request);
+
+        verifyNoInteractions(responseService);
+    }
+
+    @Test
+    void requestProcessingDoesNotCreateResponseWhenAiResponseDataIsNull() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = new AiInquiryResponse(
+                "error",
+                null,
+                new AiInquiryError("INVALID_RESPONSE", "invalid response")
+        );
+        InquiryResult savedResult = mock(InquiryResult.class);
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse)).thenReturn(savedResult);
+
+        service.requestProcessing(10L, request);
+
+        verifyNoInteractions(responseService);
+    }
+
+    @Test
+    void requestProcessingDoesNotCreateResponseWhenInquiryResultSaveFails() {
+        AiInquiryProcessingService service = createService();
+        AiInquiryRequest request = createRequest();
+        AiInquiryResponse aiResponse = responseWithDraft(true, "auto answer");
+
+        when(aiInquiryClient.requestInquiryProcessing(request)).thenReturn(aiResponse);
+        when(aiInquiryResultService.applyAiResult(10L, aiResponse))
+                .thenThrow(new IllegalArgumentException("inquiry result already exists"));
+
+        assertThatThrownBy(() -> service.requestProcessing(10L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("inquiry result already exists");
+
+        verifyNoInteractions(responseService);
+    }
+
     private AiInquiryProcessingService createService() {
         return new AiInquiryProcessingService(
                 inquiryRepository,
                 aiInquiryRequestFactory,
                 aiInquiryClient,
                 aiInquiryResultService,
-                retryPolicy
+                retryPolicy,
+                responseService
+        );
+    }
+
+    private InquiryResult savedInquiryResult(Long id) {
+        InquiryResult inquiryResult = mock(InquiryResult.class);
+        when(inquiryResult.getId()).thenReturn(id);
+        return inquiryResult;
+    }
+
+    private AiInquiryResponse responseWithDraft(boolean autoReplyAvailable, String draftAnswer) {
+        return new AiInquiryResponse(
+                "success",
+                new AiInquiryData(
+                        "10",
+                        autoReplyAvailable,
+                        draftAnswer,
+                        !autoReplyAvailable,
+                        "reason",
+                        List.of(),
+                        List.of("policy.shipping")
+                ),
+                null
         );
     }
 
