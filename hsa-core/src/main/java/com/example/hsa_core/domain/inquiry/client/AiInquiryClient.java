@@ -30,6 +30,7 @@ public class AiInquiryClient {
     public AiInquiryResponse requestInquiryProcessing(AiInquiryRequest request) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setConnection("close");
 
         HttpEntity<AiInquiryRequest> entity = new HttpEntity<>(request, headers);
 
