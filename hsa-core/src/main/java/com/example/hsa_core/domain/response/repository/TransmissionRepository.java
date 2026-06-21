@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface TransmissionRepository extends JpaRepository<Transmission, Long> {
 
-    List<Transmission> findByResponseId(Long responseId);
+    List<Transmission> findByResponseIdOrderByRequestedTimeAsc(Long responseId);
 }

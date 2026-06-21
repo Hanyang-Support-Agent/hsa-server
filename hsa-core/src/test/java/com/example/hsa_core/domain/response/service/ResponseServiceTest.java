@@ -231,4 +231,69 @@ class ResponseServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("response status must be READY_TO_SEND");
     }
+
+    @Test
+    void getResponsesByInquiryIdReturnsResponsesByCreatedTimeAsc() throws InterruptedException {
+        Response firstResponse = responseService.createDraftResponse(1L, 10L, "first");
+        Thread.sleep(5);
+        Response secondResponse = responseService.createDraftResponse(1L, 11L, "second");
+        responseService.createDraftResponse(2L, 12L, "other inquiry");
+
+        List<Response> responses = responseService.getResponsesByInquiryId(1L);
+
+        assertThat(responses).extracting(Response::getId)
+                .containsExactly(firstResponse.getId(), secondResponse.getId());
+    }
+
+    @Test
+    void getLatestResponseByInquiryIdReturnsLatestResponse() throws InterruptedException {
+        responseService.createDraftResponse(1L, 10L, "first");
+        Thread.sleep(5);
+        Response latestResponse = responseService.createDraftResponse(1L, 11L, "latest");
+
+        Response response = responseService.getLatestResponseByInquiryId(1L);
+
+        assertThat(response.getId()).isEqualTo(latestResponse.getId());
+    }
+
+    @Test
+    void getLatestResponseByInquiryIdThrowsExceptionWhenResponseDoesNotExist() {
+        assertThatThrownBy(() -> responseService.getLatestResponseByInquiryId(999L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("response not found");
+    }
+
+    @Test
+    void getTransmissionsByResponseIdReturnsTransmissionsByRequestedTimeAsc() throws InterruptedException {
+        Response response = responseService.createAutoResponse(1L, 10L, "final answer");
+        Transmission firstTransmission = transmissionRepository.saveAndFlush(
+                Transmission.builder()
+                        .responseId(response.getId())
+                        .channelId(20L)
+                        .recipientIdentifier("first")
+                        .sendStatus(SendStatus.RETRYING)
+                        .build()
+        );
+        Thread.sleep(5);
+        Transmission secondTransmission = transmissionRepository.saveAndFlush(
+                Transmission.builder()
+                        .responseId(response.getId())
+                        .channelId(20L)
+                        .recipientIdentifier("second")
+                        .sendStatus(SendStatus.RETRYING)
+                        .build()
+        );
+
+        List<Transmission> transmissions = responseService.getTransmissionsByResponseId(response.getId());
+
+        assertThat(transmissions).extracting(Transmission::getId)
+                .containsExactly(firstTransmission.getId(), secondTransmission.getId());
+    }
+
+    @Test
+    void getTransmissionsByResponseIdThrowsExceptionWhenResponseDoesNotExist() {
+        assertThatThrownBy(() -> responseService.getTransmissionsByResponseId(999L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("response not found");
+    }
 }
