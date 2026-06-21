@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface ResponseRepository extends JpaRepository<Response, Long> {
 
-    List<Response> findByInquiryId(Long inquiryId);
+    List<Response> findByInquiryIdOrderByCreatedTimeAsc(Long inquiryId);
 
     Optional<Response> findTopByInquiryIdOrderByCreatedTimeDesc(Long inquiryId);
 }

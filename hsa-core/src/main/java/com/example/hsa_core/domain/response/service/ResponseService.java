@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ResponseService {
@@ -22,6 +24,28 @@ public class ResponseService {
     private final ResponseRepository responseRepository;
     private final ProcessingLogRepository processingLogRepository;
     private final TransmissionRepository transmissionRepository;
+
+    @Transactional(readOnly = true)
+    // 문의에 연결된 응답 목록을 생성 시각 오름차순으로 조회합니다.
+    public List<Response> getResponsesByInquiryId(Long inquiryId) {
+        return responseRepository.findByInquiryIdOrderByCreatedTimeAsc(inquiryId);
+    }
+
+    @Transactional(readOnly = true)
+    // 문의에 가장 최근에 생성된 응답을 조회합니다.
+    public Response getLatestResponseByInquiryId(Long inquiryId) {
+        return responseRepository.findTopByInquiryIdOrderByCreatedTimeDesc(inquiryId)
+                .orElseThrow(() -> new IllegalArgumentException("response not found"));
+    }
+
+    @Transactional(readOnly = true)
+    // 응답 존재 여부를 확인한 뒤 발송 내역을 요청 시각 순으로 조회합니다.
+    public List<Transmission> getTransmissionsByResponseId(Long responseId) {
+        responseRepository.findById(responseId)
+                .orElseThrow(() -> new IllegalArgumentException("response not found"));
+
+        return transmissionRepository.findByResponseIdOrderByRequestedTimeAsc(responseId);
+    }
 
     @Transactional
     public Response createDraftResponse(Long inquiryId, Long inquiryResultId, String draftContent) {
