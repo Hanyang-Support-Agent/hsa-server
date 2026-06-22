@@ -61,3 +61,6 @@ springdoc:
     operations-sorter: alpha
   api-docs:
     path: /api-docs
+
+server:
+  forward-headers-strategy: framework
