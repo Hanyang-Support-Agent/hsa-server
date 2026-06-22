@@ -1,44 +1,48 @@
-# 🗣️ 한양대학교 ERICA 클라우드캡스톤디자인 프로젝트 HSA
-## 🚀 Git Flow
-- `main`
-  - 프로젝트 최종 merge
-  - 기본 프로젝트 세팅, 배포 가능한 브랜치, 항상 배포 가능한 상태를 유지
-- `{type}/{issue number}`
-  - 개발 브랜치
-  - 예: `feat/#5`, `fix/#11`
+# HSA (Hanyang Support Agent)
+  
+  한양대학교 ERICA 클라우드캡스톤디자인 프로젝트
 
-> 작업 단위로 이슈 생성 → 브랜치 생성 → 생성한 브랜치에서 작업 후 끝나면 develop 브랜치로 PR 남기기
->
-> 모든 작업 시작 전 생성한 브랜치에서 develop 브랜치 pull을 받은 후 작업
+  고객 문의를 AI가 자동 분류/응답하고, 관리자가 검토/발송하는 CS 자동화 시스템의 **백엔드 서버**입니다.
 
-<!-- <img width="838" height="718" alt="Image" src="https://github.com/user-attachments/assets/530e9719-468e-457a-981a-e5fa46af82ff" /> -->
+  ## 아키텍처
 
-&nbsp;
-## 💡 PR Rules
-- Assignee에는 본인을 지정해 주세요.
-- Reviewers에는 본인을 제외한 백엔드 팀원 4명을 지정한 후, 카카오톡으로 공유해 주세요.
-- 이후, 팀원(1명 이상)이 PR을 확인하고 승인해서 머지해 주세요.
-  (해당 브랜치는 머지 후 자동 삭제되며, 복구도 가능합니다.)
+  Frontend (React) <-> Backend (Spring Boot) <-> AI (FastAPI)
+                            |
+                      PostgreSQL (RDS)
 
-&nbsp;
-## 💻 Commit Message Convention
-| **Type** | **Description** |
-| --- | --- |
-| **Feat** | 새로운 기능 추가 |
-| **Fix** | 버그 수정 |
-| **Docs** | 문서 수정 |
-| **Style** | 코드 formatting, 세미콜론 누락, 코드 자체의 변경이 없는 경우 |
-| **Refactor** | 코드 리팩토링 |
-| **Test** | 테스트 코드, 리팩토링 테스트 코드 추가 |
-| **Chore** | 패키지 매니저 수정, 그 외 기타 수정 (예: .gitignore) |
-| **Design** | CSS 등 사용자 UI 디자인 변경 |
-| **Comment** | 필요한 주석 추가 및 변경 |
-| **Rename** | 파일 또는 폴더 명을 수정하거나 옮기는 작업만인 경우 |
-| **Remove** | 파일을 삭제하는 작업만 수행한 경우 |
-| **Init** | 프로젝트 초기 세팅 |
-| **Merge** | 브랜치 merge |
-| **!BREAKING CHANGE** | 커다란 API 변경의 경우 |
-| **!HOTFIX** | 급하게 치명적인 버그를 고쳐야 하는 경우 |
-> Type: commit title
->
-> ex. `Feat: 로그인 기능 추가`
+  - **인프라**: AWS ECS Fargate
+  - **서비스 디스커버리**: AWS Cloud Map (`hsa-ai.hsa.local`)
+  - **CI/CD**: GitHub Actions -> ECR -> ECS 자동 배포
+
+  ## 기술 스택
+  
+  | 영역 | 기술 |
+  |---|---|
+  | Language | Java 21 |
+  | Framework | Spring Boot 3.4.5 |
+  | ORM | Spring Data JPA / Hibernate |
+  | DB | PostgreSQL 15 (AWS RDS) |
+  | API 문서 | Springdoc OpenAPI (Swagger) |
+  | HTTP Client | Apache HttpClient 5 |
+  | 빌드 | Gradle |
+  | 인프라 | AWS ECS Fargate, ECR, Cloud Map, RDS |
+  | CI/CD | GitHub Actions |
+  
+  ## 도메인 구조
+
+  | 도메인 | 설명 |
+  |---|---|
+  | `channel` | 채널 관리 (카카오, 메일, 웹) 및 웹훅 접수 |
+  | `customer` | 고객 정보 관리 |
+  | `inquiry` | 문의 생성/조회, AI 처리 요청/결과 저장 |
+  | `response` | AI 답변 초안 및 관리자 최종 응답 관리 |
+  | `admin` | 관리자 문의 상세 조회 |
+  | `mock` | 테스트용 주문/배송 목데이터 |
+
+  ## 주요 흐름
+  
+  1. 외부 채널(카카오/메일/웹)에서 웹훅으로 문의 접수
+  2. 백엔드가 문의 저장 후 AI 서버에 처리 요청
+  3. AI가 문의 분류/답변 초안 생성 후 반환
+  4. 자동응답 가능 시 즉시 발송, 아닐 경우 관리자 검토 대기
+  5. 관리자가 검토/수정 후 최종 응답 발송
