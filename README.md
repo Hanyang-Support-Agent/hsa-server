@@ -13,6 +13,8 @@
   - **인프라**: AWS ECS Fargate
   - **서비스 디스커버리**: AWS Cloud Map (`hsa-ai.hsa.local`)
   - **CI/CD**: GitHub Actions -> ECR -> ECS 자동 배포
+<img width="1536" height="1024" alt="hsa_최종 아키텍처" src="https://github.com/user-attachments/assets/2f6cd44f-1d67-4b85-af96-f22515f3a32f" />
+
 
   ## 기술 스택
   
